@@ -24,7 +24,7 @@ AddNewEquationNode:
 		j FindLast
 		
 	Append:
-		sw  $v0, 56($t2) #make the previous node point to the new node
+		sw  $v0, 56($t1) #make the previous node point to the new node
 		jr $ra
 		
 	
