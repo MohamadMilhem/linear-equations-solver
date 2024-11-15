@@ -24,15 +24,15 @@ AddNewSolutionNode:
 		j FindLastSolution
 		
 	AppendSolution:
-		sw  $v0, 56($t1) #make the previous node point to the new node
+		sw  $v0, 20($t1) #make the previous node point to the new node
 		jr $ra
 		
 	
 	CreateListSolution:
 		li $v0, 9 #syscall to allocate memory (allocates # of bytes in $a0)
-		li $a0, 60 #allocate 60 bytes for each system of equations
+		li $a0, 24 #allocate 24 bytes for each system of equations
 		syscall 
-		move $s0, $v0 
-		sw $zero, 56($s0)
+		move $s1, $v0 
+		sw $zero, 20($s1)
 		jr $ra
 		
