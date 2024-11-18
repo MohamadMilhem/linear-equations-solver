@@ -9,47 +9,58 @@ dot: .asciiz "."
 newLine: .asciiz "\n"
 
 # File path
-fileName: .asciiz "C:\\Users\\TESTUSER\\Desktop\\UniversityCoursesFiles\\uniYear4\\Architecture\\linear-equations-solver\\equations.txt"
-#fileName: .space 2048
+#fileName: .asciiz "C:/Users/moham/OneDrive/Desktop/Computer Engineering/ENCS4370 (Architecture)/Project1/linear-equations-solver/TEST/equations.txt"
+fileName: .space 2048
 #Enter file String 
-EnterFileString: .asciiz "Enter files name:"
+EnterFileString: .asciiz "\nEnter files name:"
 # Buffers 
 NumBuff: .space 10
 fileBuff: .space 512
 systemBuff: .space 2024      # Buffer to accumulate a system of equations
 lineBuff: .space 512
 .text
-#.globl readFile:
 
 readFile:
-    	# Load file name address into $a0
-    	#li $v0, 4
-    	#la $a0, EnterFileString
-    	#syscall 
+	# save ra 
+	addi $sp, $sp, -4
+    	sw $ra, 0($sp)
     	
-    	#li $v0, 8
-    	#la $a0, fileName
-    	#li $a1, 2048
-    	#syscall 
+	# Load file name address into $a0
+    	li $v0, 4
+    	la $a0, EnterFileString
+    	syscall 
     	
-    	#li $v0, 4
-    	#la $a0, fileName
-    	#syscall 
+    	li $v0, 8
+    	la $a0, fileName
+    	li $a1, 2048
+    	syscall 
+    	
+    	la $t0, fileName                # Load address of fileName buffer
+	remove_newline:
+    		lb $t1, 0($t0)                  # Load a byte from fileName buffer
+    		beqz $t1, open_file             # If null terminator is found, end loop
+   		beq $t1, 10, replace_newline    # If newline ('\n') is found, replace it
+    		addi $t0, $t0, 1                # Move to the next byte
+    	j remove_newline
+
+	replace_newline:
+    		sb $zero, 0($t0)  
     	
    	la $a0, fileName
-    
-    	# Open the file
-    	li $v0, 13          # Open file syscall
-    	li $a1, 0           # Open file for reading
-    	syscall
-    	move $s2, $v0       # Save file descriptor in $s2
+    	open_file:
+    		# Open the file
+    		li $v0, 13          # Open file syscall
+    		li $a1, 0           # Open file for reading
+    		syscall
+    		move $s2, $v0       # Save file descriptor in $s2
     	
-    	li $v0, 1
-	move $a0, $s2
-	syscall
+    	#print statement
+    	#li $v0, 1
+	#move $a0, $s2
+	#syscall
 
     	# Check if file opened successfully
-    	bltz $s2, Exit      # If $s2 is negative, exit program
+    	bltz $s2, CantOpenFile      # If $s2 is negative, exit program
  	
  # read one system of equations
 ReadSysEq:
@@ -78,7 +89,7 @@ ReadSysEq:
     	    	addi $k1, $k1, 1 #increment character counter
     	    	
     	    	beq $t2, 10, CopyLineToSystem #copy line to system buffer
-    	    	
+    	    	beq $k0, 0, CopyLineToSystem  #copy line to system buffer if the last char is EOF.
     	    	
     	    	j readEqLoop
 
@@ -91,7 +102,8 @@ CopyLineToSystem:
      		sb $t7, 0($s4)
      		addi $s4, $s4, 1 #increment systenBuff
      		addi $t6, $t6, 1 #increment lineBuff
-     		beq $t7, $t5, IsEndOfSys  
+     		beq $t7, $t5, IsEndOfSys  # End of the system if the current line is \n 
+     		beq $t7, 0, IsEndOfSys    # End of the system if the current line is EOF.
      		Continue:	
      		beq $t7, $t5, initReadEqLoop ## 
      		addi $t1, $t1, 1
@@ -103,7 +115,8 @@ IsEndOfSys:
 
 ParseSys:
 	la $s4, systemBuff 
-	move $s5, $t0 #number of equations in the system
+	move $s5, $t0 #number of equations in the system.
+	beq $s5, 0, EndReadFile
 	jal AddNewEquationNode #initialize a linked list node. s0 is address of head and v0 is address of new node
 	move $t0, $v0 #save address of new node in $t0
 	li $s6, 0 #variables counter
@@ -206,9 +219,9 @@ ParseSys:
 		sb $t1, 0($t7) #store new var in node
 		addi $s6, $s6, 1 #increment var counter
 		#######################
-		li $v0, 1
-		move $a0, $s6
-		syscall 
+		#li $v0, 1
+		#move $a0, $s6
+		#syscall 
 		######################
 		lw $a0, 0($t0) #move the number of equations to $a0
 		bgt $s6 ,$a0, DeclareSysUnderdetermined  #check is number of variables is greater than number of equation. 
@@ -252,483 +265,26 @@ ParseSys:
 		
 		j ReturnFromstoreOneVar
 	
-  #   Print the buffer content
-  
   
   	CheckFileEnd:
-		beq $k0, $zero, PrintList #check for EOF	
+		beq $k0, $zero, EndReadFile #check for EOF
 		j ContinueFromCheckFileEnd
   
-	PrintList: 
-	move $t1, $s0
+	EndReadFile: 
+		li $v0, 16          # Close file syscall
+    		move $a0, $s2       # File descriptor in $a0
+    		syscall
+    		# restore $ra 
+		lw $ra, 0($sp)
+    		addi $sp, $sp, 4
+    		
+	jr $ra
 	
-	li $v0, 1
-	lw $a0, 0($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-    	li $v0, 11
-	lb $a0, 4($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 11
-	lb $a0, 5($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 11
-	lb $a0, 6($t1)
+CantOpenFile:
+	la $a0, CantOpenFileMessage
+	li $v0, 4
 	syscall
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 11
-	lb $a0, 7($t1)
-	syscall
-	
-	li $v0, 11
-	li $a0, 10
-	syscall
-	
-	li $v0, 1
-	lw $a0, 8($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-	li $v0, 1
-	lw $a0, 12($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall  
-	
-	li $v0, 1
-	lw $a0, 16($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 1
-	lw $a0, 20($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 1
-	lw $a0, 24($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 1
-	lw $a0, 28($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-	li $v0, 1
-	lw $a0, 32($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-	li $v0, 1
-	lw $a0, 36($t1)
-	syscall
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-	li $v0, 1
-	lw $a0, 40($t1)
-	syscall
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	  
-	li $v0, 1
-	lw $a0, 44($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-	li $v0, 1
-	lw $a0, 48($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	  
-	li $v0, 1
-	lw $a0, 52($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 1
-	lw $a0, 56($t1)
-	syscall
-	
-	 lw $t1, 56($t1)
-	 #move $t1, $a0
-	 
-	 li $v0, 11
-	li $a0, 10
-	syscall
-	
-	 li $v0, 1
-	lw $a0, 0($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-    	li $v0, 11
-	lb $a0, 4($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 11
-	lb $a0, 5($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 11
-	lb $a0, 6($t1)
-	syscall
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 11
-	lb $a0, 7($t1)
-	syscall
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 1
-	lw $a0, 8($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-	li $v0, 1
-	lw $a0, 12($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall  
-	
-	li $v0, 1
-	lw $a0, 16($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 1
-	lw $a0, 20($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 1
-	lw $a0, 24($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 1
-	lw $a0, 28($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-	li $v0, 1
-	lw $a0, 32($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-	li $v0, 1
-	lw $a0, 36($t1)
-	syscall
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-	li $v0, 1
-	lw $a0, 40($t1)
-	syscall
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	  
-	li $v0, 1
-	lw $a0, 44($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-	li $v0, 1
-	lw $a0, 48($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	  
-	li $v0, 1
-	lw $a0, 52($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 1
-	lw $a0, 56($t1)
-	syscall
-	
-		 lw $t1, 56($t1)
-	 #move $t1, $a0
-	 
-	 li $v0, 11
-	li $a0, 10
-	syscall
-	
-	 li $v0, 1
-	lw $a0, 0($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-    	li $v0, 11
-	lb $a0, 4($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 11
-	lb $a0, 5($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 11
-	lb $a0, 6($t1)
-	syscall
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 11
-	lb $a0, 7($t1)
-	syscall
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 1
-	lw $a0, 8($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-	li $v0, 1
-	lw $a0, 12($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall  
-	
-	li $v0, 1
-	lw $a0, 16($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 1
-	lw $a0, 20($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 1
-	lw $a0, 24($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 1
-	lw $a0, 28($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-	li $v0, 1
-	lw $a0, 32($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-	li $v0, 1
-	lw $a0, 36($t1)
-	syscall
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-	li $v0, 1
-	lw $a0, 40($t1)
-	syscall
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	  
-	li $v0, 1
-	lw $a0, 44($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	
-	li $v0, 1
-	lw $a0, 48($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	  
-	li $v0, 1
-	lw $a0, 52($t1)
-	syscall 
-	
-	li $v0, 11
-	li $a0, 10
-	syscall 
-	
-	li $v0, 1
-	lw $a0, 56($t1)
-	syscall
-
-CloseFile: 
-    li $v0, 16          # Close file syscall
-    move $a0, $s2       # File descriptor in $a0
-    syscall 
-
-Exit:
-    li $v0, 10          # Exit program syscall
-    syscall 
-
-
-
-.include "equations_linked_list.asm"
+	# restore $ra 
+	lw $ra, 0($sp)
+    	addi $sp, $sp, 4
+	j menuLoop

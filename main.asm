@@ -1,21 +1,24 @@
 .data
-
 directory: .ascii  "C:\Users\moham\OneDrive\Desktop\Computer Engineering\ENCS4370 (Architecture)\Project1"
 
 # Messages
 errorOptNotInRange : .asciiz "\nThe option is not in the valid range.\n"
 byeMessage : .asciiz "\nGood Bye!\n"
-
+screenOrFileMessage:.asciiz "\nPlease Enter F to print on File and S to print on the screen:\n"
+fileReadSuccessfullyMessage: .asciiz "\nThe input file was read successfully.\n"
+fileSolvedSuccessfullyMessage:.asciiz "\nThe input file was solved successfully.\n"
 
 # Methods addresses
 methodsTable:
-	.word readFile
-	.word printAnswers
-
+	.word readAndSolve
+	.word outputToScreenOrFile
 
 .text 
 .globl main
-main:
+main: 
+	# clear register s0 and s1 for the head of the linked lists.
+	move $s0, $zero
+	move $s1, $zero
 
 menuLoop:
 	jal printMenu # print the menu
@@ -49,9 +52,41 @@ menuLoop:
 	addu $t0, $t0, $t1   # find the address of method to call.
 	
 	lw $t0, 0($t0) 	     # load function address.
-	jalr $t0
+	jr $t0
+	
 	
 	j menuLoop
+	
+
+readAndSolve:
+	jal readFile
+	la $a0, fileReadSuccessfullyMessage
+	li $v0, 4
+	syscall
+	jal solveSystems
+	la $a0, fileSolvedSuccessfullyMessage
+	li $v0, 4
+	syscall
+	j menuLoop
+	
+	
+outputToScreenOrFile:
+	la $a0, screenOrFileMessage
+	li $v0, 4
+	syscall
+	
+	li $v0, 12    # read option from user console
+	syscall
+	
+	beq $v0, 102, printAnswersToFile # Check if F or f
+	beq $v0, 70, printAnswersToFile
+	
+	beq $v0, 115, printAnswers # Check if S or s
+	beq $v0, 83, printAnswers
+
+	j printErrorOptNotInRange
+	
+	
 	
 printErrorOptNotInRange:
 	la $a0, errorOptNotInRange
@@ -65,5 +100,10 @@ Exit:
 	li $v0, 10
 	syscall
 	
-.include "methods.asm"
 
+
+.include "methods.asm"
+.include "equations_linked_list.asm"
+.include "solutions_linked_list.asm"
+.include "solve.asm"
+.include "read_file.asm"
